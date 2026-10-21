@@ -1,0 +1,56 @@
+# rclone serving test files (read-only WebDAV, basic auth) to the inside agent only.
+apiVersion: compute.datumapis.com/v1alpha
+kind: Workload
+metadata:
+  name: a2a-rclone
+spec:
+  template:
+    spec:
+      runtime:
+        class: general-purpose
+        resources:
+          instanceType: datumcloud/d1-standard-2
+        sandbox:
+          imagePullSecrets:
+            - name: registry-credentials
+          containers:
+            - name: rclone
+              image: ghcr.io/dlotterman/sandbox-2-datum@sha256:dbb7739fb9e6f18a18d061a854650f7a49ae2afbddebd82d8d23e57674f99d43
+              ports:
+                - name: rclone
+                  port: 8080
+              env:
+                - name: RC_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: a2a-data-env
+                      key: RC_USER
+                - name: RC_PASS
+                  valueFrom:
+                    secretKeyRef:
+                      name: a2a-data-env
+                      key: RC_PASS
+      networkInterfaces:
+        - network:
+            name: a2a-iroh
+  placements:
+    - name: us-west
+      locations:
+        - name: us-west-1
+      scaleSettings:
+        minReplicas: 1
+---
+# Internal only: no HTTPProxy, so rclone is reachable on the private network, not the internet.
+apiVersion: networking.datumapis.com/v1alpha
+kind: NetworkService
+metadata:
+  name: a2a-rclone
+spec:
+  networkInterfaces:
+    selector:
+      matchLabels:
+        compute.datumapis.com/workload-name: a2a-rclone
+  ports:
+    - name: rclone
+      port: 8080
+      protocol: TCP

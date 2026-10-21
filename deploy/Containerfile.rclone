@@ -1,0 +1,4 @@
+FROM docker.io/rclone/rclone:latest
+COPY demo/rclone-data /data
+# Read-only WebDAV with basic auth; credentials arrive as env vars (RC_USER / RC_PASS).
+ENTRYPOINT ["/bin/sh", "-c", "exec rclone serve webdav /data --addr [::]:8080 --read-only --user \"$RC_USER\" --pass \"$RC_PASS\""]

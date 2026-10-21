@@ -1,0 +1,4 @@
+FROM docker.io/library/debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY inside-agent /usr/local/bin/inside-agent
+ENTRYPOINT ["/usr/local/bin/inside-agent"]

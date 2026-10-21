@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About · Outside Agent</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="brand"><span class="dot"></span><span>Outside Agent</span></div>
+    <nav>
+      <a class="btn" href="/">Dashboard</a>
+      <a class="btn primary" href="/about">About</a>
+    </nav>
+  </div>
+</header>
+<main class="wrap">
+  <section class="hero">
+    <div class="eyebrow">About this demo</div>
+    <h1>A2A, tunneled through Iroh to Datum Compute</h1>
+    <p class="lede">Every question this agent asks and every answer it gets travels as an A2A message over an Iroh connection, brokered by Datum's Iroh relays and ending at an agent running on Datum Compute. Neither side opens an HTTP port to the internet.</p>
+  </section>
+
+  <section class="card">
+    <svg class="diagram" viewBox="0 0 900 340" role="img" aria-label="Outside agent connects out through Datum Iroh relays to the inside agent on Datum Compute, which fronts Postgres, rclone and the model API">
+      <rect class="box" x="10" y="90" width="210" height="130" rx="12"/>
+      <text class="t" x="28" y="122">Outside agent</text>
+      <text class="s" x="28" y="146">Fly.io · Cloud Run</text>
+      <text class="s" x="28" y="166">exe.dev · local Podman</text>
+      <text class="s" x="28" y="196">no inbound port, no model key</text>
+
+      <rect class="box hl" x="345" y="30" width="210" height="130" rx="12"/>
+      <text class="t" x="363" y="62">Datum Iroh relays</text>
+      <text class="s" x="363" y="86">us-west-1 · us-central-1</text>
+      <text class="s" x="363" y="106">us-east-1</text>
+      <text class="s" x="363" y="136">forward ciphertext only</text>
+
+      <rect class="box hl" x="680" y="60" width="210" height="190" rx="12"/>
+      <text class="t" x="698" y="92">Inside agent</text>
+      <text class="s" x="698" y="114">on Datum Compute</text>
+      <text class="s" x="698" y="144">policy gate: allowlist,</text>
+      <text class="s" x="698" y="162">rules, LLM review</text>
+      <text class="s" x="698" y="192">no HTTP listener,</text>
+      <text class="s" x="698" y="210">no load balancer</text>
+
+      <rect class="box" x="640" y="280" width="80" height="44" rx="10"/><text class="s" x="680" y="307" text-anchor="middle">Postgres</text>
+      <rect class="box" x="730" y="280" width="70" height="44" rx="10"/><text class="s" x="765" y="307" text-anchor="middle">rclone</text>
+      <rect class="box" x="810" y="280" width="80" height="44" rx="10"/><text class="s" x="850" y="307" text-anchor="middle">LLM API</text>
+      <path class="line" d="M700 250 V280 M765 250 V280 M850 250 V280"/>
+
+      <path class="line" d="M220 135 L345 95"/>
+      <path class="line" d="M555 95 L680 135"/>
+      <rect class="pill" x="248" y="92" width="72" height="20" rx="10"/><text class="pt" x="284" y="106" text-anchor="middle">out · 443</text>
+      <rect class="pill" x="582" y="92" width="72" height="20" rx="10"/><text class="pt" x="618" y="106" text-anchor="middle">out · 443</text>
+      <path class="line dash" d="M120 220 C 120 320, 560 320, 640 225"/>
+      <text class="s" x="330" y="312">direct UDP path, when hole-punching succeeds</text>
+    </svg>
+  </section>
+
+  <h2>The path of one request</h2>
+  <ol class="steps prose">
+    <li><div><strong>Dial a key, not an address.</strong> This agent knows one thing about the inside agent: its Iroh endpoint ID, a public key. There is no DNS name to resolve, no IP to find, and no discovery service in the loop.</div></li>
+    <li><div><strong>Meet at a Datum relay.</strong> Each side keeps a single outbound HTTPS connection (port 443) to a Datum Iroh relay. The first packets flow through the inside agent's home relay, so the connection starts immediately.</div></li>
+    <li><div><strong>Try for a direct path.</strong> While traffic is relayed, both sides attempt UDP hole-punching. If it works, traffic moves to the direct path and the relay stays as a fallback. Either way it is QUIC with TLS 1.3 end to end, and the relays only see ciphertext.</div></li>
+    <li><div><strong>Speak A2A over a stream.</strong> Each request opens a QUIC stream under the ALPN <code>a2a-iroh/http1/0</code> and carries an ordinary HTTP/1.1 exchange: the Agent Card at <code>/.well-known/agent-card.json</code> and JSON-RPC <code>message/send</code> calls for skills. It is plain A2A; only the transport is unusual.</div></li>
+    <li><div><strong>Check at the gate.</strong> The inside agent learns who is calling from the cryptographic identity of the connection, checks its allowlist, applies deterministic rules, and then asks an LLM to review the request before doing any work.</div></li>
+    <li><div><strong>Answer from behind the door.</strong> The model key, Postgres and the file store live on a private Datum network next to the inside agent. None of them is exposed to the internet, and neither is the inside agent.</div></li>
+  </ol>
+
+  <h2>Why tunnel A2A this way</h2>
+  <div class="prose">
+    <p>Some platforms, such as exe.dev, RunPod or Daytona, heavily restrict inbound and outbound HTTP. An Iroh agent needs only outbound HTTPS to a relay, so the same binary behaves the same on Fly.io, Cloud Run, exe.dev or a laptop running Podman.</p>
+    <p>The inside agent never has to be published. Datum Compute runs it with no HTTP proxy or load balancer in front of it; the only way in is to dial its key and be on its allowlist.</p>
+  </div>
+
+  <h2>What crosses the tunnel</h2>
+  <div class="card tablecard">
+    <table class="plain">
+      <thead><tr><th>Skill</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td>ip.lookup</td><td>Geolocation, ASN and reverse DNS for this agent's public IP, which Iroh itself discovered.</td></tr>
+        <tr><td>llm.complete</td><td>A chat completion on a fixed model. The model key never leaves the inside agent.</td></tr>
+        <tr><td>data.catalog · data.query</td><td>What reference data exists, and read-only rows from an allowlisted Postgres table.</td></tr>
+        <tr><td>files.get</td><td>One small text file from an rclone-served store.</td></tr>
+        <tr><td>agents.sync</td><td>Report this agent's metadata and receive every agent the inside agent saw in the last six hours.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>What this agent does not have</h2>
+  <div class="prose">
+    <p>No model credentials, no discovery service, and no other network peer than the inside agent. Its dashboard is its own small web server and is not part of the tunnel; everything shown on it was learned by asking the inside agent.</p>
+  </div>
+
+  <h2>Who is talking right now</h2>
+  <section class="card" id="ids"></section>
+
+  <footer><a href="/">Back to the dashboard</a></footer>
+</main>
+<script src="/common.js"></script>
+<script src="/about.js"></script>
+</body>
+</html>

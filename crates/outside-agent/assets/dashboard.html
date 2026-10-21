@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Outside Agent</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="brand"><span class="dot" id="dot"></span><span>Outside Agent</span></div>
+    <nav>
+      <a class="btn" href="/about">About</a>
+      <a class="btn" href="/api/state">state</a>
+      <a class="btn" href="/api/findings">findings</a>
+      <a class="btn" href="/api/facts">facts</a>
+      <a class="btn primary" href="/api/refresh" id="refresh">Refresh now</a>
+    </nav>
+  </div>
+</header>
+<main class="wrap">
+  <section class="hero">
+    <div class="eyebrow">Connected over Iroh · A2A</div>
+    <h1>Where am I running?</h1>
+    <p class="lede">This agent holds no model credentials and talks to exactly one peer via Iroh tunneled A2A. Everything below came from asking the inside agent: IP lookups, language-model answers, and reference data, each one checked by its policy gate.</p>
+  </section>
+
+  <section class="grid" id="stats"></section>
+
+  <h2>Hosting guess</h2>
+  <section id="guess"></section>
+
+  <h2>Agents the inside agent has seen</h2>
+  <p class="meta" id="agents-note"></p>
+  <section id="agents"></section>
+
+  <h2>What I learned, step by step</h2>
+  <section id="findings"></section>
+
+  <h2>Runtime facts</h2>
+  <section id="facts"></section>
+
+  <footer>
+    <div id="foot"></div>
+  </footer>
+</main>
+<script src="/common.js"></script>
+<script src="/dashboard.js"></script>
+</body>
+</html>

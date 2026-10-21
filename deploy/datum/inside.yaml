@@ -1,0 +1,84 @@
+# Inside agent. No NetworkService, HTTPProxy or ALB: nothing listens for HTTP. Outside agents
+# reach it only by dialing its Iroh endpoint id (stable, because the key comes from the Secret).
+apiVersion: compute.datumapis.com/v1alpha
+kind: Workload
+metadata:
+  name: a2a-inside
+spec:
+  template:
+    spec:
+      runtime:
+        class: general-purpose
+        resources:
+          instanceType: datumcloud/d1-standard-2
+        sandbox:
+          imagePullSecrets:
+            - name: registry-credentials
+          containers:
+            - name: inside-agent
+              image: ghcr.io/dlotterman/sandbox-2-datum@sha256:ccb69dec0686bc244a9ed2009ae5839ec1f6646e90aaca6fa88a6f70b080f711
+              env:
+                - name: BASETEN_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: a2a-inside-env
+                      key: BASETEN_API_KEY
+                - name: BASETEN_MODEL
+                  valueFrom:
+                    secretKeyRef:
+                      name: a2a-inside-env
+                      key: BASETEN_MODEL
+                - name: INSIDE_SECRET_KEY_HEX
+                  valueFrom:
+                    secretKeyRef:
+                      name: a2a-inside-env
+                      key: INSIDE_SECRET_KEY_HEX
+                - name: ALLOWED_PEERS
+                  valueFrom:
+                    secretKeyRef:
+                      name: a2a-inside-env
+                      key: ALLOWED_PEERS
+                - name: POSTGRES_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: a2a-data-env
+                      key: POSTGRES_USER
+                - name: POSTGRES_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: a2a-data-env
+                      key: POSTGRES_PASSWORD
+                - name: POSTGRES_DB
+                  valueFrom:
+                    secretKeyRef:
+                      name: a2a-data-env
+                      key: POSTGRES_DB
+                - name: RC_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: a2a-data-env
+                      key: RC_USER
+                - name: RC_PASS
+                  valueFrom:
+                    secretKeyRef:
+                      name: a2a-data-env
+                      key: RC_PASS
+                - name: POSTGRES_HOST
+                  valueFrom:
+                    configMapKeyRef:
+                      name: a2a-addrs
+                      key: POSTGRES_HOST
+                - name: RCLONE_HOST
+                  valueFrom:
+                    configMapKeyRef:
+                      name: a2a-addrs
+                      key: RCLONE_HOST
+      networkInterfaces:
+        - network:
+            name: a2a-iroh
+  placements:
+    - name: us-west
+      locations:
+        - name: us-west-1
+      scaleSettings:
+        minReplicas: 1

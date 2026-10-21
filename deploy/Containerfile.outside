@@ -1,0 +1,5 @@
+FROM docker.io/library/debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY outside-agent /usr/local/bin/outside-agent
+EXPOSE 8080
+ENTRYPOINT ["/usr/local/bin/outside-agent"]

@@ -1,0 +1,11 @@
+# Dedicated network for the demo (not "default"). IPv6-only, like the other project networks.
+apiVersion: networking.datumapis.com/v1alpha
+kind: Network
+metadata:
+  name: a2a-iroh
+spec:
+  ipFamilies:
+    - IPv6
+  ipam:
+    mode: Auto
+  mtu: 1440

@@ -1,0 +1,59 @@
+# Postgres for the inside agent. Storage is the instance's ephemeral disk; the inside agent re-seeds on start.
+apiVersion: compute.datumapis.com/v1alpha
+kind: Workload
+metadata:
+  name: a2a-postgres
+spec:
+  template:
+    spec:
+      runtime:
+        class: general-purpose
+        resources:
+          instanceType: datumcloud/d1-standard-2
+        sandbox:
+          containers:
+            - name: postgres
+              image: docker.io/library/postgres:17
+              ports:
+                - name: postgres
+                  port: 5432
+              env:
+                - name: POSTGRES_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: a2a-data-env
+                      key: POSTGRES_USER
+                - name: POSTGRES_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: a2a-data-env
+                      key: POSTGRES_PASSWORD
+                - name: POSTGRES_DB
+                  valueFrom:
+                    secretKeyRef:
+                      name: a2a-data-env
+                      key: POSTGRES_DB
+      networkInterfaces:
+        - network:
+            name: a2a-iroh
+  placements:
+    - name: us-west
+      locations:
+        - name: us-west-1
+      scaleSettings:
+        minReplicas: 1
+---
+# Internal only: no HTTPProxy, so postgres is reachable on the private network, not the internet.
+apiVersion: networking.datumapis.com/v1alpha
+kind: NetworkService
+metadata:
+  name: a2a-postgres
+spec:
+  networkInterfaces:
+    selector:
+      matchLabels:
+        compute.datumapis.com/workload-name: a2a-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      protocol: TCP

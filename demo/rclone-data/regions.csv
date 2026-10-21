@@ -1,0 +1,10 @@
+provider,region_code,city,country
+Datum,us-west-1,San Jose,US
+Datum,us-central-1,Dallas,US
+Datum,us-east-1,Ashburn,US
+Fly.io,lax,Los Angeles,US
+Fly.io,sjc,San Jose,US
+Fly.io,iad,Ashburn,US
+Fly.io,ams,Amsterdam,NL
+RunPod,US-CA-2,California,US
+RunPod,EU-RO-1,Romania,RO
