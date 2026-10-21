@@ -1,6 +1,7 @@
-# Local Podman
+# Local containers
 
-Two ways to run locally, both with rootless Podman and the same images as everywhere else.
+Two ways to run locally in containers, using the same images as everywhere else. Commands use `podman`; Docker or any
+compatible runtime works too (rootless is just how we run it, not a requirement).
 
 ```mermaid
 flowchart LR
@@ -35,15 +36,16 @@ podman run -d --name a2a-outside --restart=always --http-proxy=false -p 8088:808
   -e INSIDE_ENDPOINT_ID="$(cat keys/inside.id)" IMAGE      # e.g. localhost/a2a-outside:local from deploy/Containerfile.outside
 ```
 
-Add `-e DASHBOARD_TOKEN=…` if others can reach the host's port; without it the dashboard is open to your LAN. To survive reboots,
-enable `systemctl --user enable podman-restart.service` (with lingering on).
+Add `-e DASHBOARD_TOKEN=…` if others can reach the host's port; without it the dashboard is open to your LAN. To survive reboots with Podman, enable
+`podman-restart.service` for your user (`systemctl --user enable podman-restart.service`, with lingering on); Docker's daemon restarts
+containers itself.
 
 ## Gotchas
 
 - Use `http://127.0.0.1:8088`: `localhost` resolved to IPv6 first and the published port did not answer there.
-- Rootless networking here is `pasta`, which copies the **host's** addresses into the container. There is no separate container
-  IP, and the agent's hosting guess says "home machine" accordingly.
-- `--http-proxy=false` and `:z` on mounts: see [the common gotchas](README.md#gotchas-on-every-platform).
+- On our host (rootless Podman) networking is `pasta`, which copies the **host's** addresses into the container, so there is no
+  separate container IP and the agent's hosting guess says "home machine". Other runtimes will show other addresses.
+- `--http-proxy=false` (Podman) and `:z` on mounts (SELinux hosts only): see [the common gotchas](README.md#gotchas-on-every-platform).
 
 ## Tear down
 

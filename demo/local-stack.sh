@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Run the whole demo on one machine with rootless Podman: Postgres, rclone, the inside agent and an outside agent,
-# on separate networks. The agents still meet through Datum's public Iroh relays (override with RELAYS=...).
+# Run the whole demo on one machine in containers: Postgres, rclone, the inside agent and an outside agent, on
+# separate networks. Written for Podman; Docker or another runtime should work with minor changes. The agents still
+# meet through Datum's public Iroh relays (override with RELAYS=...).
 #
 #   demo/local-stack.sh up      needs: scripts/build.sh already run, BASETEN_API_KEY exported
 #   demo/local-stack.sh down

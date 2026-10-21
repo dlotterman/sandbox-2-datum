@@ -11,7 +11,7 @@ flowchart LR
     fly["Fly.io"]
     cr["Cloud Run"]
     exe["exe.dev VM"]
-    pod["Local Podman"]
+    pod["Local container"]
     more["RunPod · Daytona · …"]
   end
 
@@ -77,7 +77,11 @@ How it works, the security model and the limits: [docs/DESIGN.md](docs/DESIGN.md
 
 ## Try it locally
 
-Needs rootless Podman and an OpenAI-compatible LLM endpoint (the demo uses [Baseten](https://www.baseten.co/)).
+Needs a container runtime and an OpenAI-compatible LLM endpoint (the demo uses [Baseten](https://www.baseten.co/)).
+
+> **A note on containers:** the commands here use `podman` (rootless, because that is how we run it). Anywhere you see Podman,
+> Docker or any other compatible container runtime works too; swap the command, and adjust Podman-only flags such as
+> `--http-proxy=false`.
 
 ```sh
 scripts/build.sh                  # builds in a disposable container
@@ -101,7 +105,7 @@ A small suite aimed at the security intentions and the tunnel, not at coverage; 
 
 ## Deploying
 
-See [docs/deploy/](docs/deploy/README.md) for Datum Compute, Fly.io, Cloud Run, exe.dev, Podman and Railway (untried). Each
+See [docs/deploy/](docs/deploy/README.md) for Datum Compute, Fly.io, Cloud Run, exe.dev, local containers and Railway (untried). Each
 outside agent needs its own keypair, whose public id goes on the inside agent's `ALLOWED_PEERS`. Keys, tokens and `.env` are
 git-ignored.
 

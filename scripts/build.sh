@@ -1,5 +1,5 @@
 #!/bin/sh
-# Build the workspace in a disposable rootless container; target dir lives in a podman volume.
+# Build the workspace in a disposable container; the target dir lives in a named volume.
 set -eu
 cd "$(dirname "$0")/.."
 podman volume exists cargo-home || podman volume create cargo-home >/dev/null

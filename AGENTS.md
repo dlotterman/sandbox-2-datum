@@ -30,8 +30,8 @@ Written to be read by people first; pick the clearer form over the shorter one.
 
 - No Rust toolchain is assumed on the host. `scripts/build.sh` builds in a disposable container; binaries land in the
   `a2a-target` volume under `release/` (see `demo/local-stack.sh` for copying them out).
-- Use rootless Podman. Pass `--http-proxy=false` (hosts with proxy variables otherwise leak them into containers) and `:z` on
-  bind mounts (SELinux).
+- Commands use `podman`; Docker or any compatible runtime works too (rootless is just how we run it). Podman-specific:
+  `--http-proxy=false` (stops hosts with proxy variables leaking them into containers); `:z` on bind mounts is for SELinux hosts.
 - Never `source` a `.env`: values can contain spaces. Parse it (`scripts/deploy-exe.py` shows how).
 - `gcloud` and `datumctl` may need to be on `PATH` or run from a container.
 

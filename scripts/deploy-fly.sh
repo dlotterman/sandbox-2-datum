@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Deploy the outside agent to Fly.io with a remote build (no registry needed): a bundle dir holding the
-# Dockerfile and the prebuilt binary. flyctl runs in a rootless podman container.
+# Dockerfile and the prebuilt binary. flyctl runs in a container.
 # Needs: .env with FLYIO_TOKEN, keys/fly.key, keys/fly.token, keys/inside.id, and a built outside-agent
 # binary (scripts/build.sh; copy it out of the a2a-target volume to $BIN).
 set -euo pipefail

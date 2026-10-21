@@ -1,5 +1,5 @@
 #!/bin/sh
-# Run the test suite in a disposable rootless container (same volumes as build.sh, debug profile).
+# Run the test suite in a disposable container (same volumes as build.sh, debug profile).
 set -eu
 cd "$(dirname "$0")/.."
 podman volume exists cargo-home || podman volume create cargo-home >/dev/null

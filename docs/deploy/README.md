@@ -1,7 +1,8 @@
 # Deploy cheat sheets
 
 Field notes from doing it: exact steps, what to check, what went wrong, how to tear down. Commands marked *not run here* are
-standard tooling we did not exercise.
+standard tooling we did not exercise. Commands use `podman`, which can mean Docker or any compatible container runtime
+([details](../../README.md#try-it-locally)).
 
 | Page | Runs | Status |
 |---|---|---|
@@ -9,7 +10,7 @@ standard tooling we did not exercise.
 | [Fly.io](fly-io.md) | Outside agent | Deployed, verified |
 | [Cloud Run](cloud-run.md) | Outside agent | Deployed, verified |
 | [exe.dev](exe-dev.md) | Outside agent | Deployed, verified |
-| [Local Podman](local-podman.md) | Outside agent, or everything | Deployed, verified |
+| [Local containers](local-containers.md) | Outside agent, or everything | Deployed, verified |
 | [Railway](railway.md) | Outside agent | **Not deployed** (Railway outage) |
 
 ## The order of things
@@ -21,7 +22,7 @@ flowchart LR
   datum --> id["Note the inside agent's<br/>endpoint id"]
   keys["One keypair + dashboard token<br/>per outside agent"] --> allow["Add each public id to<br/>ALLOWED_PEERS, restart inside"]
   datum --> allow
-  id --> outside["Deploy outside agents<br/>(Fly · Cloud Run · exe.dev · Podman)"]
+  id --> outside["Deploy outside agents<br/>(Fly · Cloud Run · exe.dev · local container)"]
   allow --> outside
   outside --> verify["Check the inside agent's log<br/>and any dashboard's agents table"]
 ```
@@ -83,6 +84,6 @@ flowchart TD
 
 ## Gotchas on every platform
 
-- Podman copies the host's `http_proxy` into containers: pass `--http-proxy=false`.
+- Podman copies the host's `http_proxy` into containers: pass `--http-proxy=false` (a Podman flag; with Docker, check your proxy settings instead).
 - Never `source` the `.env`: values like Fly's `FlyV1 …` token contain spaces, and bash runs (and echoes) them. Parse the file.
 - Give each step a few seconds before the next; Datum in particular pushes back on rapid applies.
