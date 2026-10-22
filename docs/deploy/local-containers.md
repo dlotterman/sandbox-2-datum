@@ -25,8 +25,14 @@ demo/local-stack.sh up                # Postgres, rclone, inside agent and outsi
 demo/local-stack.sh down
 ```
 
-Keys are generated once into git-ignored `.local-stack/`, so the agents keep their identities between runs. It still uses Datum's
-public relays unless you set `RELAYS`. Set `PORT` if 8088 is taken.
+The inside agent's key and an enrollment token are made once in git-ignored `.local-stack/`, so its endpoint id is stable between
+runs. Outside agents have no keys: they enroll themselves with the token. Add more while it runs, without restarting anything:
+
+```sh
+demo/local-stack.sh add          # another outside agent, dashboard on a free port
+```
+
+It still uses Datum's public relays unless you set `RELAYS`. Set `PORT` if 8088 is taken.
 
 ## B. Just an outside agent, long-lived, talking to a deployed inside agent
 

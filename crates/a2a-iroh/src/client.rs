@@ -5,7 +5,7 @@ use http_body_util::{BodyExt, Full, Limited};
 use hyper::{Method, Request, StatusCode};
 use hyper_util::rt::TokioIo;
 use iroh::{endpoint::Connection, Endpoint, EndpointAddr};
-use serde_json::Value;
+use serde_json::{json, Value};
 use tokio::sync::Mutex;
 
 use crate::{a2a, ALPN};
@@ -18,11 +18,19 @@ pub struct Client {
     endpoint: Endpoint,
     target: EndpointAddr,
     connection: Mutex<Option<Connection>>,
+    enrollment_token: Option<String>,
 }
 
 impl Client {
     pub fn new(endpoint: Endpoint, target: EndpointAddr) -> Self {
-        Self { endpoint, target, connection: Mutex::new(None) }
+        Self { endpoint, target, connection: Mutex::new(None), enrollment_token: None }
+    }
+
+    /// Enroll with the peer using `token` whenever it says we are not enrolled, then retry the call.
+    /// This covers the first call, an expired enrollment, and the peer restarting and forgetting us.
+    pub fn with_enrollment_token(mut self, token: impl Into<String>) -> Self {
+        self.enrollment_token = Some(token.into());
+        self
     }
 
     /// Fetch the peer's A2A Agent Card.
@@ -35,10 +43,31 @@ impl Client {
     }
 
     /// Ask the peer to run `skill`: an A2A `message/send` whose data part names the skill and its arguments.
+    /// If an enrollment token was given and the peer says we are not enrolled, enroll and try once more.
     pub async fn call_skill(&self, skill: &str, args: Value, text: &str) -> Result<a2a::TaskOutcome> {
+        let outcome = self.call_skill_once(skill, args.clone(), text).await?;
+        match &self.enrollment_token {
+            Some(token) if outcome.is_not_enrolled() => {
+                self.enroll(token).await?;
+                self.call_skill_once(skill, args, text).await
+            }
+            _ => Ok(outcome),
+        }
+    }
+
+    async fn call_skill_once(&self, skill: &str, args: Value, text: &str) -> Result<a2a::TaskOutcome> {
         let request = a2a::message_send(skill, args, text);
         let (_, body) = self.request(Method::POST, "/", Some(request)).await?;
         a2a::parse_task(&serde_json::from_slice(&body)?)
+    }
+
+    async fn enroll(&self, token: &str) -> Result<()> {
+        let args = json!({"token": token});
+        let outcome = self.call_skill_once(a2a::ENROLL_SKILL, args, "Enroll with the inside agent").await?;
+        if outcome.state != "completed" {
+            return Err(anyhow!("enrollment refused ({}): {}", outcome.state, outcome.text));
+        }
+        Ok(())
     }
 
     /// Send one HTTP request over Iroh. If the first attempt fails (for example the connection went stale),

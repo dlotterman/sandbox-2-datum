@@ -9,12 +9,13 @@ ask the inside agent for help, and serve a dashboard. Overview: [README.md](READ
 Each crate's `main.rs` or `lib.rs` opens with a module map; start there.
 
 - `crates/a2a-iroh`: the shared tunnel (endpoints, server, client, A2A messages). `tests/tunnel.rs` is a real Iroh round trip.
-- `crates/inside-agent`: `rpc.rs` (request handling), `policy.rs` (the gate), `skills.rs`, `llm.rs`, `data/`. All its
+- `crates/inside-agent`: `rpc.rs` (request handling), `enrollment.rs` (allowlist and token enrollment), `policy.rs` (the
+  gate), `skills.rs`, `llm.rs`, `data/`. All its
   environment variables are documented at the top of `config.rs`.
 - `crates/outside-agent`: `cycle.rs` and `investigation.rs` (the hosting-guess story and its prompts), `registry.rs`, `web.rs`.
   Environment variables are at the top of `config.rs`. The UI is plain HTML, CSS and JavaScript in `assets/`, compiled into
   the binary, so edits need a rebuild.
-- `deploy/`, `scripts/`, `demo/`, `sbom.md`. **Read `docs/deploy/` for your platform before deploying.**
+- `deploy/`, `scripts/`, `demo/`, `sbom.md`. `deploy/vm/` unpacks the image onto VM-like targets (Vultr, Fly Sprites). **Read `docs/deploy/` for your platform before deploying.**
 
 ## Code style
 
@@ -37,7 +38,8 @@ Written to be read by people first; pick the clearer form over the shorter one.
 
 ## Invariants (do not weaken)
 
-- **Check order:** allowlist, then rules, then LLM review. The review only ever adds restrictions, and any error or
+- **Check order:** allowlisted or enrolled, then rules, then LLM review. A stranger reaches nothing but the Agent Card and
+  `agents.enroll`, and the enrolled check comes before any skill runs or the registry is touched. The review only ever adds restrictions, and any error or
   unparsable verdict is a denial. Do not loosen it to "fix" a denial caused by an upstream error.
 - The outside agent has **no LLM credentials** and **no peer but the inside agent**: no discovery service, no external IP
   lookup (its public IP comes from Iroh).
@@ -49,10 +51,10 @@ Written to be read by people first; pick the clearer form over the shorter one.
 
 ## Validating changes
 
-`scripts/test.sh` runs the tests in a container (`-p <crate>` for one; the first run compiles everything). The suite is small
+`python3 -m unittest discover -s deploy/vm` tests the image unpacker. `scripts/test.sh` runs the Rust tests in a container (`-p <crate>` for one; the first run compiles everything). The suite is small
 and aimed at intent, not coverage, and has been mutation-checked: breaking the strict review verdict, file-name validation,
-key-echo screening, the allowlist, the dashboard gate, the public-IP check, SQL parameter binding or the catalog filter each
-fails a test. A mock LLM server (`testutil::mock_llm`) scripts model replies.
+key-echo screening, the allowlist, the enrollment gate, token check, expiry and cap, the dashboard gate, the public-IP check, SQL
+parameter binding or the catalog filter each fails a test. A mock LLM server (`testutil::mock_llm`) scripts model replies.
 
 Not covered by tests: Postgres and rclone paths, relays and hole-punching. Check those and everything else by hand:
 

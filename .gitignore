@@ -2,3 +2,6 @@ target/
 .env
 keys/
 .local-stack/
+__pycache__/
+*.pyc
+deployment-notes.md

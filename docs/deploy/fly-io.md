@@ -1,6 +1,6 @@
-# Fly.io: outside agent
+# Fly.io Apps: outside agent
 
-One always-on shared-CPU machine with a public HTTPS URL. Fly **builds the image remotely** from a tiny bundle (a Dockerfile and
+One always-on shared-CPU machine with a public HTTPS URL. (For Fly's VM product that sleeps when idle, see [Fly Sprites](fly-sprites.md).) Fly **builds the image remotely** from a tiny bundle (a Dockerfile and
 the prebuilt binary), so no registry is involved, and `flyctl` runs in a container.
 
 ```mermaid

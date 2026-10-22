@@ -8,6 +8,7 @@ use serde_json::{json, Value};
 /// (unless the name looks secret); every other variable is reported by name only.
 const PLATFORM_PREFIXES: &[&str] = &[
     "FLY_",
+    "SPRITE_",
     "RAILWAY_",
     "RUNPOD_",
     "DAYTONA_",

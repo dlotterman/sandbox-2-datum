@@ -38,6 +38,11 @@ spec:
                     secretKeyRef:
                       name: a2a-inside-env
                       key: ALLOWED_PEERS
+                - name: ENROLLMENT_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: a2a-inside-env
+                      key: ENROLLMENT_TOKEN
                 - name: POSTGRES_USER
                   valueFrom:
                     secretKeyRef:

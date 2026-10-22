@@ -7,6 +7,7 @@ use serde_json::json;
 
 use crate::{
     app::{App, LlmConfig, PostgresConfig, RcloneConfig},
+    enrollment::Enrollments,
     policy::Limiter,
 };
 
@@ -24,9 +25,11 @@ pub fn app(llm_url: &str, api_key: &str) -> App {
         },
         rclone: RcloneConfig { url: String::new(), user: String::new(), password: String::new() },
         llm: LlmConfig { api_key: api_key.into(), model: "test-model".into(), base_url: llm_url.into() },
+        enrollments: Enrollments::new(None, std::time::Duration::from_secs(3600), std::collections::HashSet::new()),
         http: reqwest::Client::new(),
         endpoint_id: "test".into(),
         quota: Limiter::new(1000),
+        enroll_quota: Limiter::new(1000),
         sync_quota: Limiter::new(1000),
         llm_slots: tokio::sync::Semaphore::new(2),
     }

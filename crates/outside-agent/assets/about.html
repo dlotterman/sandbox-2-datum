@@ -65,7 +65,7 @@
     <li><div><strong>Meet at a Datum relay.</strong> Each side keeps a single outbound HTTPS connection (port 443) to a Datum Iroh relay. The first packets flow through the inside agent's home relay, so the connection starts immediately.</div></li>
     <li><div><strong>Try for a direct path.</strong> While traffic is relayed, both sides attempt UDP hole-punching. If it works, traffic moves to the direct path and the relay stays as a fallback. Either way it is QUIC with TLS 1.3 end to end, and the relays only see ciphertext.</div></li>
     <li><div><strong>Speak A2A over a stream.</strong> Each request opens a QUIC stream under the ALPN <code>a2a-iroh/http1/0</code> and carries an ordinary HTTP/1.1 exchange: the Agent Card at <code>/.well-known/agent-card.json</code> and JSON-RPC <code>message/send</code> calls for skills. It is plain A2A; only the transport is unusual.</div></li>
-    <li><div><strong>Check at the gate.</strong> The inside agent learns who is calling from the cryptographic identity of the connection, checks its allowlist, applies deterministic rules, and then asks an LLM to review the request before doing any work.</div></li>
+    <li><div><strong>Check at the gate.</strong> The inside agent learns who is calling from the cryptographic identity of the connection, checks that the caller is allowlisted or enrolled, applies deterministic rules, and then asks an LLM to review the request before doing any work.</div></li>
     <li><div><strong>Answer from behind the door.</strong> The model key, Postgres and the file store live on a private Datum network next to the inside agent. None of them is exposed to the internet, and neither is the inside agent.</div></li>
   </ol>
 

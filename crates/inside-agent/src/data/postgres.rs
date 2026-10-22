@@ -22,13 +22,28 @@ struct Platform {
 }
 
 /// Demo reference data: typical runtime signals of hosting platforms. Hints, not proof.
-const PLATFORMS: [Platform; 10] = [
+const PLATFORMS: [Platform; 12] = [
     Platform {
         name: "Fly.io",
         kind: "microVM",
         signals: "env FLY_APP_NAME, FLY_REGION, FLY_MACHINE_ID; Firecracker; 6PN fdaa::/16",
         regions: "lax, sjc, iad, ams, ...",
         notes: "Long-lived machines, anycast edge",
+    },
+    Platform {
+        name: "Fly Sprites",
+        kind: "VM (sleeps when idle)",
+        signals:
+            "env SPRITE_*; hostname equals the sprite name; interface spr0 10.0.0.1; kernel ending -fly; non-root uid",
+        regions: "multiple",
+        notes: "Persistent Linux VMs for agents; pause about 30 s after going idle",
+    },
+    Platform {
+        name: "Vultr",
+        kind: "VM",
+        signals: "DMI sys_vendor Vultr and product_name VC2; plain cloud VM, no platform env vars",
+        regions: "ewr, lax, ams, fra, sjc, ...",
+        notes: "Cloud compute instances; cloud-init user data",
     },
     Platform {
         name: "Railway",

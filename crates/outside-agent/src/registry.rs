@@ -95,10 +95,14 @@ fn platform_hint(facts: &Value) -> String {
 
     if is_set("FLY_APP_NAME") {
         format!("Fly.io {}", env["FLY_REGION"].as_str().unwrap_or("")).trim().to_string()
+    } else if env.as_object().is_some_and(|vars| vars.keys().any(|name| name.starts_with("SPRITE_"))) {
+        "Fly Sprite".to_string()
     } else if is_set("RAILWAY_ENVIRONMENT") || is_set("RAILWAY_PROJECT_ID") {
         "Railway".to_string()
     } else if is_set("K_SERVICE") && is_set("K_CONFIGURATION") {
         "Google Cloud Run".to_string()
+    } else if facts["dmi"]["sys_vendor"] == "Vultr" {
+        "Vultr".to_string()
     } else if is_set("RUNPOD_POD_ID") {
         "RunPod".to_string()
     } else if is_set("KUBERNETES_SERVICE_HOST") {
@@ -118,6 +122,8 @@ mod tests {
     fn platform_hints_come_from_environment_markers() {
         let hint = |facts: Value| platform_hint(&facts);
         assert_eq!(hint(json!({"platform_env": {"FLY_APP_NAME": "x", "FLY_REGION": "lax"}})), "Fly.io lax");
+        assert_eq!(hint(json!({"platform_env": {"SPRITE_STORAGE_DRIVER": "x"}})), "Fly Sprite");
+        assert_eq!(hint(json!({"platform_env": {}, "dmi": {"sys_vendor": "Vultr", "product_name": "VC2"}})), "Vultr");
         assert_eq!(hint(json!({"platform_env": {"K_SERVICE": "svc", "K_CONFIGURATION": "svc"}})), "Google Cloud Run");
         assert_eq!(hint(json!({"platform_env": {}, "containerenv_present": true})), "container");
         assert_eq!(hint(json!({"platform_env": {}})), "unknown");

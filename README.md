@@ -11,6 +11,8 @@ flowchart LR
     fly["Fly.io"]
     cr["Cloud Run"]
     exe["exe.dev VM"]
+    spr["Fly Sprite"]
+    vul["Vultr VM"]
     pod["Local container"]
     more["RunPod · Daytona · …"]
   end
@@ -19,7 +21,7 @@ flowchart LR
 
   subgraph datum["Datum Compute"]
     direction TB
-    inside["<b>Inside agent</b><br/>no HTTP listener<br/>allowlist → rules → LLM review"]
+    inside["<b>Inside agent</b><br/>no HTTP listener<br/>allowlist or enrollment → rules → LLM review"]
     data[("Postgres · rclone<br/>private network")]
   end
 
@@ -28,6 +30,8 @@ flowchart LR
   fly --> relays
   cr --> relays
   exe --> relays
+  spr --> relays
+  vul --> relays
   pod --> relays
   more --> relays
   relays == "A2A over Iroh<br/>QUIC + TLS 1.3" ==> inside
@@ -37,7 +41,7 @@ flowchart LR
 
   classDef agent fill:#e6f59f,stroke:#4d6356,color:#0c1d31
   classDef core fill:#0c1d31,stroke:#0c1d31,color:#f6f6f5
-  class fly,cr,exe,pod,more agent
+  class fly,cr,exe,spr,vul,pod,more agent
   class inside core
 ```
 
@@ -48,6 +52,7 @@ Outside agents are satellites of one Datum-hosted inside agent.
 - An **outside agent** is one binary that runs anywhere with outbound HTTPS (Fly.io, Cloud Run, exe.dev, a laptop). It dials
   the inside agent by public key, asks for IP lookups, LLM answers and reference data, works out where it is hosted, and
   serves a small dashboard.
+- Outside agents can enroll themselves with a shared token, so you can add or scale them without touching the inside agent.
 - The inside agent remembers every agent seen in the last six hours and each dashboard shows that table, so a platform that
   blocks inbound HTTP still appears on every other agent's page.
 
@@ -56,7 +61,7 @@ Outside agents are satellites of one Datum-hosted inside agent.
  ┌───────────────────────────┐   QUIC, TLS 1.3    ┌────────────────────────────────────┐
  │ iroh endpoint             │  via Datum relays, │ iroh endpoint (stable key)         │
  │ A2A client (HTTP/1.1 over │  direct UDP when   │ A2A server (HTTP/1.1 over streams) │
- │ Iroh streams)             │  hole-punching     │ policy gate: allowlist -> rules -> │
+ │ Iroh streams)             │  hole-punching     │ policy gate: allow/enroll -> rules -> │
  │ dashboard on :8080        │  works             │   LLM review                       │
  │ no LLM key, no other egress│◄─────────────────►│ Postgres · rclone · LLM API        │
  └───────────────────────────┘                    └────────────────────────────────────┘
@@ -105,7 +110,7 @@ A small suite aimed at the security intentions and the tunnel, not at coverage; 
 
 ## Deploying
 
-See [docs/deploy/](docs/deploy/README.md) for Datum Compute, Fly.io, Cloud Run, exe.dev, local containers and Railway (untried). Each
+See [docs/deploy/](docs/deploy/README.md) for Datum Compute, Fly.io, Cloud Run, exe.dev, Fly Sprites, Vultr, local containers and Railway (untried). Each
 outside agent needs its own keypair, whose public id goes on the inside agent's `ALLOWED_PEERS`. Keys, tokens and `.env` are
 git-ignored.
 

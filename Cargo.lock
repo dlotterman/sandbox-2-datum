@@ -1304,10 +1304,12 @@ dependencies = [
  "anyhow",
  "axum",
  "bytes",
+ "http-body-util",
  "reqwest 0.12.28",
  "serde_json",
  "tokio",
  "tokio-postgres",
+ "tower",
 ]
 
 [[package]]

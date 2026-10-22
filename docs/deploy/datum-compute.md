@@ -39,7 +39,7 @@ First put your image digests in `deploy/datum/{inside,rclone}.yaml` ([how](READM
 datumctl apply -f deploy/datum/network.yaml                      # 1. a dedicated network, not "default"
 sleep 8
 python3 deploy/datum/data-secret.py | datumctl apply -f -        # 2. random DB and rclone credentials (re-running rotates them)
-python3 deploy/datum/inside-secret.py LLM.env keys/inside.key "$(cat keys/fly.id),$(cat keys/exe.id)" | datumctl apply -f -
+python3 deploy/datum/inside-secret.py LLM.env keys/inside.key "$(cat keys/fly.id),$(cat keys/exe.id)" keys/enrollment.token | datumctl apply -f -
 sleep 5
 datumctl apply -f deploy/datum/postgres.yaml                     # 3. Postgres (ephemeral disk)
 datumctl apply -f deploy/datum/rclone.yaml                       #    rclone (read-only WebDAV of demo/rclone-data)
@@ -50,17 +50,22 @@ datumctl apply -f deploy/datum/inside.yaml                       # 5. the inside
 datumctl compute logs a2a-inside | grep -E 'ENDPOINT_ID|postgres ready|allowlist'
 ```
 
-`LLM.env` needs `BASETEN_API_KEY` and `BASETEN_MODEL`; the quoted argument is the comma-separated allowlist of outside-agent
-ids. The logged `ENDPOINT_ID=…` is what every outside agent needs as `INSIDE_ENDPOINT_ID`. It is **stable** (the key is in a
+`LLM.env` needs `BASETEN_API_KEY` and `BASETEN_MODEL`. The quoted argument is the comma-separated allowlist of outside-agent ids
+(`""` is fine if you only use enrollment), and the optional last argument is the file holding the enrollment token. The logged `ENDPOINT_ID=…` is what every outside agent needs as `INSIDE_ENDPOINT_ID`. It is **stable** (the key is in a
 Secret), so it survives restarts and redeploys. `addrs.sh` printing "no instance" means a workload is not Available yet.
 
-## Allowlist an agent
+## Allow agents
+
+With an **enrollment token** there is nothing to do per agent: outside agents holding the token enroll themselves. Setting or rotating
+the token is the one change that needs a restart:
 
 ```sh
-python3 deploy/datum/inside-secret.py LLM.env keys/inside.key "$ID1,$ID2,$ID3" | datumctl apply -f -
+python3 deploy/datum/inside-secret.py LLM.env keys/inside.key "" keys/enrollment.token | datumctl apply -f -
 datumctl compute restart a2a-inside            # instances do not notice Secret or ConfigMap changes on their own
-datumctl compute logs a2a-inside | grep allowlist     # "allowlist: 3 peer(s)"
+datumctl compute logs a2a-inside | grep enrollment    # "allowlist: 0 peer(s); enrollment enabled"
 ```
+
+For **keyed agents**, list their ids as the third argument instead (`"$ID1,$ID2"`) and restart the same way.
 
 To update the agent, push an image, put its digest in `inside.yaml` and apply: a rolling update, same endpoint id.
 

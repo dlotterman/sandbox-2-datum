@@ -17,7 +17,7 @@ mod ip;
 mod keys;
 mod server;
 
-pub use a2a::{message_send, new_id, parse_task, rpc_error, task_result, TaskOutcome};
+pub use a2a::{message_send, new_id, parse_task, rpc_error, task_result, TaskOutcome, ENROLL_SKILL, NOT_ENROLLED};
 pub use client::Client;
 pub use endpoint::{bind, bind_with, relay_urls, target_from};
 pub use ip::is_global_ip;

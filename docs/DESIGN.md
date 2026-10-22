@@ -20,12 +20,19 @@ the internet. They dial each other with Iroh.
 - **A2A.** The Agent Card is at `/.well-known/agent-card.json`. A skill call is JSON-RPC `message/send` with a data part
   `{skill, args}`; the reply is a Task in state `completed`, `rejected` (policy denial), `failed` or `input-required`.
 
-## Identity
+## Identity and access
 
-The inside agent's key comes from a secret, so its endpoint id is stable across restarts and redeploys. Each outside agent has
-its own keypair; the inside agent keeps an allowlist of their ids (`ALLOWED_PEERS`) and drops anyone else right after the
-handshake. A caller's identity is always the authenticated key, never anything in the request. Enrolling an agent means
-editing the allowlist and restarting the inside agent; there is no enrollment API yet.
+The inside agent's key comes from a secret, so its endpoint id is stable across restarts and redeploys. A caller's identity is
+always its authenticated key, never anything in the request. There are two ways to admit an outside agent, and they can be mixed:
+
+- **Allowlist.** Each outside agent has its own keypair, and its id is listed in `ALLOWED_PEERS`. Anyone else is dropped right
+  after the handshake. Adding an agent means editing the list and restarting the inside agent.
+- **Enrollment token** (`ENROLLMENT_TOKEN`). Any peer may connect, but a stranger can only fetch the Agent Card and call
+  `agents.enroll`. Presenting the shared token enrolls its key, in memory, for 12 hours (`ENROLLMENT_HOURS`); every other skill is
+  refused with "not enrolled" until then. Outside agents generate a fresh key at boot and enroll themselves, and the client
+  re-enrolls on its own after an expiry or an inside restart, so a fleet can scale with no restart and no pre-registration. It is
+  demo-grade: one shared token, no per-agent revocation (rotate the token and restart to cut everyone off), at most 200 enrolled
+  at once, and 30 attempts per peer per hour.
 
 ## Inside agent
 
@@ -33,7 +40,7 @@ editing the allowlist and restarting the inside agent; there is no enrollment AP
 
 Every skill call passes, in order:
 
-1. **Allowlist** on the connection's key.
+1. **Access:** the connection's key is allowlisted or enrolled.
 2. **Rules:** per-peer hourly quota; request shape and size. For the LLM: a fixed model, a token cap, a stated purpose. For
    data: allowlisted columns and parameterized filters only. For files: flat names, a size cap, UTF-8 text.
 3. **LLM review** (`llm.complete`, `data.query`, `files.get`): the model is shown the request and its purpose and answers allow

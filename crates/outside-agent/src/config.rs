@@ -3,7 +3,8 @@
 //! | Variable | Meaning |
 //! | --- | --- |
 //! | `INSIDE_ENDPOINT_ID` or `INSIDE_TICKET` | who to dial: the inside agent's endpoint id (preferred) or a ticket |
-//! | `OUTSIDE_SECRET_KEY_HEX` / `OUTSIDE_KEY_FILE` | this agent's identity (read by `a2a_iroh::load_secret_key`) |
+//! | `OUTSIDE_SECRET_KEY_HEX` / `OUTSIDE_KEY_FILE` | this agent's identity (read by `a2a_iroh::load_secret_key`); with neither set, a fresh identity every start |
+//! | `ENROLLMENT_TOKEN` | the inside agent's enrollment token: lets this agent enroll itself, so its key need not be pre-registered |
 //! | `REFRESH_SECS` | seconds between introspection cycles (default 600) |
 //! | `SYNC_SECS` | seconds between registry syncs (default 30) |
 //! | `PORT` or `HTTP_BIND` | where the dashboard listens (default `0.0.0.0:8080`); `HTTP_BIND=off` disables it |
@@ -21,6 +22,8 @@ pub struct Config {
     /// `None` when the dashboard is switched off.
     pub dashboard_bind: Option<String>,
     pub dashboard_token: Option<String>,
+    /// If set, the client enrolls with the inside agent by itself whenever it is told it is not enrolled.
+    pub enrollment_token: Option<String>,
 }
 
 impl Config {
@@ -33,6 +36,7 @@ impl Config {
             sync_interval: seconds_or("SYNC_SECS", 30),
             dashboard_bind: dashboard_bind(),
             dashboard_token: dashboard_token(),
+            enrollment_token: non_empty_env("ENROLLMENT_TOKEN"),
         })
     }
 }
@@ -53,5 +57,10 @@ fn dashboard_bind() -> Option<String> {
 
 /// The token, trimmed: secret stores sometimes keep a trailing newline, which would otherwise never match.
 fn dashboard_token() -> Option<String> {
-    env::var("DASHBOARD_TOKEN").ok().map(|token| token.trim().to_string()).filter(|token| !token.is_empty())
+    non_empty_env("DASHBOARD_TOKEN")
+}
+
+/// The variable's value with whitespace trimmed, or `None` if it is unset or empty.
+fn non_empty_env(name: &str) -> Option<String> {
+    env::var(name).ok().map(|value| value.trim().to_string()).filter(|value| !value.is_empty())
 }

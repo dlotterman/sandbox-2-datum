@@ -4,6 +4,9 @@ Typical signals only. Treat as hints, not proof; verify against what the runtime
 
 - Fly.io: env FLY_APP_NAME, FLY_REGION, FLY_MACHINE_ID, FLY_ALLOC_ID. Runs in Firecracker microVMs; hostname is
   usually the machine id; private 6PN network uses fdaa::/16 addresses.
+- Fly Sprites: env SPRITE_* (e.g. SPRITE_STORAGE_DRIVER); hostname equals the sprite name; network interface `spr0`
+  (10.0.0.1); Fly kernel string (`...-fly`); runs as a non-root user on Ubuntu. Sleeps about 30 s after going idle.
+- Vultr: a plain cloud VM with no platform environment variables; DMI sys_vendor is `Vultr` and product_name `VC2` (verified on a live instance).
 - Railway: env RAILWAY_ENVIRONMENT, RAILWAY_PROJECT_ID, RAILWAY_SERVICE_ID, RAILWAY_REPLICA_ID.
 - RunPod: env RUNPOD_POD_ID, RUNPOD_DC_ID, RUNPOD_POD_HOSTNAME; GPU pods, often NVIDIA devices visible.
 - Render: env RENDER=true, RENDER_SERVICE_ID, RENDER_EXTERNAL_URL.

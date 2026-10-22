@@ -46,7 +46,11 @@ async fn main() -> Result<()> {
         inside_id: config.inside.id.to_string(),
         ..Default::default()
     }));
-    let client = Arc::new(Client::new(endpoint.clone(), config.inside.clone()));
+    let mut client = Client::new(endpoint.clone(), config.inside.clone());
+    if let Some(token) = &config.enrollment_token {
+        client = client.with_enrollment_token(token);
+    }
+    let client = Arc::new(client);
 
     spawn_cycle_loop(&shared, &client, &endpoint, config.cycle_interval);
     spawn_registry_loop(&shared, &client, &endpoint, config.sync_interval);

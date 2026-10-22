@@ -7,7 +7,9 @@ standard tooling we did not exercise. Commands use `podman`, which can mean Dock
 | Page | Runs | Status |
 |---|---|---|
 | [Datum Compute](datum-compute.md) | Inside agent, Postgres, rclone | Deployed, repeatedly |
-| [Fly.io](fly-io.md) | Outside agent | Deployed, verified |
+| [Fly.io Apps](fly-io.md) | Outside agent | Deployed, verified |
+| [Fly Sprites](fly-sprites.md) | Outside agent | Deployed, verified (sleeps when idle) |
+| [Vultr](vultr.md) | Outside agent | Deployed, verified (billed hourly) |
 | [Cloud Run](cloud-run.md) | Outside agent | Deployed, verified |
 | [exe.dev](exe-dev.md) | Outside agent | Deployed, verified |
 | [Local containers](local-containers.md) | Outside agent, or everything | Deployed, verified |
@@ -46,7 +48,15 @@ podman push ghcr.io/OWNER/REPO:inside --digestfile /tmp/inside.digest     # like
 Platforms pull by digest (`@sha256:…`), which pins exactly what runs. exe.dev needs a **public** image, and GitHub has no API
 for that: flip the package in its settings once.
 
-**3. Make a keypair and a dashboard token per outside agent.**
+**3. Choose how outside agents are admitted.** Either works; they can be mixed.
+
+- **Enrollment token (best for scaling).** One shared token: `head -c 18 /dev/urandom | base64 | tr -d '/+=' > keys/enrollment.token`.
+  The inside agent gets it as `ENROLLMENT_TOKEN`, and each outside agent as `ENROLLMENT_TOKEN` too, with **no key set**. It
+  generates a fresh identity at every start and enrolls itself, so adding agents never touches the inside agent. This is what
+  `demo/local-stack.sh` does. The Fly, Cloud Run and exe.dev scripts still use pre-registered keys; switching one to a token is
+  an environment swap (`ENROLLMENT_TOKEN` instead of `OUTSIDE_SECRET_KEY_HEX`) that we have not run on those platforms.
+- **Keypair per agent.** Generate one, keep it in git-ignored `keys/` as `NAME.key` (secret) and `NAME.id` (public id), and
+  allowlist the id in step 4:
 
 ```sh
 podman run --rm --http-proxy=false -v "$PWD/.local-stack/bin":/i:ro,z docker.io/library/debian:bookworm-slim \
@@ -54,10 +64,10 @@ podman run --rm --http-proxy=false -v "$PWD/.local-stack/bin":/i:ro,z docker.io/
 python3 -c "import secrets; print(secrets.token_urlsafe(18))" > keys/fly.token
 ```
 
-Keep them in git-ignored `keys/` as `NAME.key` (secret), `NAME.id` (public id) and `NAME.token`.
+Either way, each outside agent also wants a dashboard token (`NAME.token`) if its dashboard is public.
 
-**4. Allowlist the outside agents:** put their ids in the inside agent's `ALLOWED_PEERS` and restart it
-([how](datum-compute.md#allowlist-an-agent)).
+**4. Tell the inside agent** the enrollment token and/or the ids of keyed agents, then restart it
+([how](datum-compute.md#allow-agents)).
 
 **5. Verify.** Look for the agent in the inside log, and in the **Agents the inside agent has seen** table on any dashboard,
 usually within a minute. That table is the best check for platforms that block inbound HTTP: read it from a different agent.
@@ -65,6 +75,23 @@ usually within a minute. That table is the best check for platforms that block i
 ```sh
 datumctl compute logs a2a-inside | grep -E 'peer (connected|disconnected)|denied peer'
 ```
+
+## VM targets: unpacking the image
+
+Container platforms run our image. Plain VMs (Vultr, Fly Sprites, any Linux box) have no container runtime, but the agent is a
+single binary in the image's last layer, so the VM targets **unpack** the image instead:
+
+```mermaid
+flowchart LR
+  reg["Public image<br/>ghcr.io/OWNER/REPO@sha256:…<br/>(gzip layers; the binary is the last, ~8 MB)"]
+  reg -- "deploy/vm/unpack-image.py<br/>python3 standard library only" --> bin["/usr/local/bin/outside-agent<br/>manifest and layer digests verified"]
+  bin --> env["/etc/a2a/outside.env<br/>(root-only: ids and tokens)"]
+  env --> svc["systemd unit, or a wrapper that a<br/>platform service runs (Sprites)"]
+```
+
+`deploy/vm/install-outside-agent.sh` does the rest (settings file, service) and re-runs itself under `sudo` if needed. The image must
+be public and pinned by digest; a pinned reference is verified end to end. VM targets want an **enrollment token** or a key file, never
+a Datum-only secret. Test the unpacker with `python3 -m unittest discover -s deploy/vm`.
 
 ## When an agent does not show up
 

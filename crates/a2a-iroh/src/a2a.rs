@@ -26,6 +26,12 @@ pub fn message_send(skill: &str, args: Value, text: &str) -> Value {
     })
 }
 
+/// The skill a peer calls to exchange an enrollment token for access, `{"token": "..."}`.
+pub const ENROLL_SKILL: &str = "agents.enroll";
+
+/// What the inside agent's refusal says when the caller is not enrolled. Clients look for it to know they should enroll.
+pub const NOT_ENROLLED: &str = "not enrolled";
+
 /// A finished A2A Task, flattened to what callers here need.
 #[derive(Debug, Clone)]
 pub struct TaskOutcome {
@@ -33,6 +39,13 @@ pub struct TaskOutcome {
     pub state: String,
     pub text: String,
     pub data: Option<Value>,
+}
+
+impl TaskOutcome {
+    /// True if the peer refused because we have not enrolled (or our enrollment expired).
+    pub fn is_not_enrolled(&self) -> bool {
+        self.state == "rejected" && self.text.contains(NOT_ENROLLED)
+    }
 }
 
 /// Build the JSON-RPC response for `request_id`: a Task in `state` whose single artifact holds `text` and, if given, `data`.
@@ -103,6 +116,14 @@ mod tests {
             request["params"]["message"]["parts"][1]["data"],
             json!({"skill": "ip.lookup", "args": {"ip": "8.8.8.8"}})
         );
+    }
+
+    #[test]
+    fn only_a_rejection_that_says_not_enrolled_counts_as_not_enrolled() {
+        let outcome = |state: &str, text: &str| TaskOutcome { state: state.into(), text: text.into(), data: None };
+        assert!(outcome("rejected", &format!("denied by rule: {NOT_ENROLLED}: call agents.enroll")).is_not_enrolled());
+        assert!(!outcome("rejected", "denied by rule: file too large").is_not_enrolled());
+        assert!(!outcome("completed", NOT_ENROLLED).is_not_enrolled(), "only a rejection counts");
     }
 
     #[test]

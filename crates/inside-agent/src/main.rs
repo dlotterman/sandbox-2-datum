@@ -9,6 +9,7 @@
 mod app;
 mod config;
 mod data;
+mod enrollment;
 mod llm;
 mod policy;
 mod rpc;
@@ -32,8 +33,11 @@ async fn main() -> Result<()> {
     }
 
     let config = Config::from_env()?;
-    eprintln!("allowlist: {} peer(s)", config.allowed_peers.len());
-    let allowed_peers = config.allowed_peers.clone();
+    eprintln!(
+        "allowlist: {} peer(s); enrollment {}",
+        config.allowed_peers.len(),
+        if config.enrollment_token.is_some() { "enabled" } else { "disabled" }
+    );
 
     let secret_key = a2a_iroh::load_secret_key("INSIDE_SECRET_KEY_HEX", "INSIDE_KEY_FILE")?;
     let endpoint = a2a_iroh::bind(secret_key, vec![a2a_iroh::ALPN.to_vec()]).await?;
@@ -52,7 +56,8 @@ async fn main() -> Result<()> {
     let seeding = app.clone();
     tokio::spawn(async move { data::init(&seeding).await });
 
-    let allow = Arc::new(move |peer: &a2a_iroh::iroh::EndpointId| allowed_peers.contains(peer));
+    let gate = app.clone();
+    let allow = Arc::new(move |peer: &a2a_iroh::iroh::EndpointId| gate.enrollments.may_connect(peer));
     a2a_iroh::serve(endpoint, allow, rpc::router(app)).await;
     Ok(())
 }

@@ -7,9 +7,11 @@
 //! | `BASETEN_API_KEY`, `BASETEN_MODEL`, `BASETEN_BASE_URL` | the LLM provider |
 //! | `POSTGRES_HOST`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | the database |
 //! | `RCLONE_URL`, or `RCLONE_HOST` (an IPv6 literal), `RC_USER`, `RC_PASS` | the file store |
+//! | `ENROLLMENT_TOKEN` | optional shared token that lets any outside agent enroll itself; unset means the allowlist only |
+//! | `ENROLLMENT_HOURS` | how long an enrollment lasts (default 12) |
 //! | `LLM_CALLS_PER_HOUR`, `LLM_CONCURRENCY` | per-peer quota and simultaneous LLM requests |
 //! | `RELAYS` | override Datum's relays (read by `a2a_iroh`) |
-use std::{collections::HashSet, env, str::FromStr};
+use std::{collections::HashSet, env, str::FromStr, time::Duration};
 
 use a2a_iroh::iroh::EndpointId;
 use anyhow::{anyhow, Result};
@@ -23,6 +25,9 @@ pub struct Config {
     pub llm: LlmConfig,
     pub llm_calls_per_hour: u32,
     pub llm_concurrency: usize,
+    /// `None` when enrollment is off.
+    pub enrollment_token: Option<String>,
+    pub enrollment_lifetime: Duration,
 }
 
 impl Config {
@@ -43,6 +48,8 @@ impl Config {
             },
             llm_calls_per_hour: number_or("LLM_CALLS_PER_HOUR", 120),
             llm_concurrency: number_or("LLM_CONCURRENCY", 2),
+            enrollment_token: Some(text("ENROLLMENT_TOKEN").trim().to_string()).filter(|token| !token.is_empty()),
+            enrollment_lifetime: Duration::from_secs(number_or::<u64>("ENROLLMENT_HOURS", 12) * 3600),
         })
     }
 }

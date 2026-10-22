@@ -7,7 +7,7 @@ Generated 2026-10-21 with Syft 1.55.0, rustc 1.99.1 (58cf8f9c3 2026-10-13) and c
 This snapshot covers the Rust crates linked into the two executables (`inside-agent`, `outside-agent`, resolved by `cargo tree -e normal` from the committed lockfile) and the packages Syft detected in the three container images built from this repository's Containerfiles. Versions are the locked or observed versions.
 
 - Crates linked into the executables: **274** (16 direct, 25 are procedural macros that run at build time only).
-- `Cargo.lock` SHA256: `382d87f38031191fbac26a630ef6d4831d4c1bf8a9a8b3a0ff5b72e6d59e1ad2`.
+- `Cargo.lock` SHA256: `8299a8aa4109f0b8b83d47625e4e2bc6639a42af28922d1e2dc4db1372303362`.
 - Workspace crates (this project, The Unlicense): `a2a-iroh`, `inside-agent`, `outside-agent`.
 - Build-only and test-only crates (`-e normal` excludes them) and the Rust toolchain are not part of the executables and are not listed.
 - The Containerfiles use mutable base tags (`debian:bookworm-slim`, `rclone/rclone:latest`), so rebuilding can change the operating-system package set. The image IDs below identify what was scanned.
@@ -381,7 +381,7 @@ Each image is a Debian or Alpine base plus one Rust executable (dynamically link
 
 ### inside-agent
 
-Image ID `cc75f9b6a9667daf5040aa594a911ec300094ea69d6f4f8a8da3f6b398340e4d`; base `Debian GNU/Linux 12 (bookworm)`; **91** packages detected (91 deb).
+Image ID `81543bf0cb1ca26ee68220a211d31a404c67049f4e230ac6f1362faff7e5265b`; base `Debian GNU/Linux 12 (bookworm)`; **91** packages detected (91 deb).
 
 <details>
 <summary>Package list</summary>
@@ -484,7 +484,7 @@ Image ID `cc75f9b6a9667daf5040aa594a911ec300094ea69d6f4f8a8da3f6b398340e4d`; bas
 
 ### outside-agent
 
-Image ID `b4fb6667c3c541fbe8866a3fed26da064cf666073469accf06131d2c8264845e`; base `Debian GNU/Linux 12 (bookworm)`; **91** packages detected (91 deb).
+Image ID `1f861ec9429fa8140f30d011a60726b0ccd9f5f7e6e9340c2f78f4a157a194cf`; base `Debian GNU/Linux 12 (bookworm)`; **91** packages detected (91 deb).
 
 <details>
 <summary>Package list</summary>

@@ -5,7 +5,7 @@
 //! Task (`completed`, `rejected` or `failed`) and records the decision.
 use std::sync::Arc;
 
-use a2a_iroh::{iroh::EndpointId, rpc_error, task_result, Peer};
+use a2a_iroh::{iroh::EndpointId, rpc_error, task_result, Peer, ENROLL_SKILL};
 use axum::{
     extract::{DefaultBodyLimit, State},
     routing::{get, post},
@@ -16,6 +16,7 @@ use serde_json::{json, Value};
 use crate::{
     app::App,
     data,
+    enrollment::Enrollments,
     skill::{SkillError, SkillOutput, SkillResult},
     skills,
 };
@@ -42,7 +43,7 @@ struct SkillInfo {
     tags: &'static [&'static str],
 }
 
-const SKILLS: [SkillInfo; 6] = [
+const SKILLS: [SkillInfo; 7] = [
     SkillInfo {
         id: "llm.complete",
         name: "LLM completion",
@@ -73,6 +74,12 @@ const SKILLS: [SkillInfo; 6] = [
         description:
             "Optionally report your own metadata and get every agent seen in the last 6 hours. args: {report?}",
         tags: &["registry"],
+    },
+    SkillInfo {
+        id: ENROLL_SKILL,
+        name: "Enroll",
+        description: "Trade the enrollment token for access, when enrollment is enabled. args: {token}",
+        tags: &["access"],
     },
     SkillInfo {
         id: "files.get",
@@ -131,12 +138,31 @@ async fn message_send(
         return Json(task_result(&request_id, "input-required", "send a DataPart {skill, args}", None));
     };
 
+    let outcome = authorize_and_run(&app, &peer, &call).await;
+    Json(reply_and_audit(&app, &peer, &call.skill, &request_id, outcome))
+}
+
+/// Strangers may only enroll; everyone else must already be allowlisted or enrolled before any skill runs.
+async fn authorize_and_run(app: &Arc<App>, peer: &EndpointId, call: &SkillCall) -> SkillResult {
+    if call.skill == ENROLL_SKILL {
+        return enroll(app, peer, &call.args);
+    }
+    if !app.enrollments.is_enrolled(peer) {
+        return Err(Enrollments::refusal());
+    }
+
     // Count the request in the registry in the background; it must not slow the answer down.
     let (background_app, caller) = (app.clone(), peer.to_string());
     tokio::spawn(async move { data::touch(&background_app, &caller).await });
 
-    let outcome = run_skill(&app, &peer, &call).await;
-    Json(reply_and_audit(&app, &peer, &call.skill, &request_id, outcome))
+    run_skill(app, peer, call).await
+}
+
+fn enroll(app: &App, peer: &EndpointId, args: &Value) -> SkillResult {
+    if !app.enroll_quota.check(peer) {
+        return Err(SkillError::RuleDenied("too many enrollment attempts, try again later".into()));
+    }
+    app.enrollments.enroll(peer, args["token"].as_str().unwrap_or(""))
 }
 
 /// Check the caller's quota, then run the skill. Registry syncs have their own, larger quota so that
@@ -198,4 +224,88 @@ fn audit(app: &Arc<App>, peer: &EndpointId, skill: &str, decision: &str, reason:
     let (peer, skill, decision, reason) =
         (peer.to_string(), skill.to_string(), decision.to_string(), reason.to_string());
     tokio::spawn(async move { data::record_audit(&app, &peer, &skill, &decision, &reason).await });
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{collections::HashSet, time::Duration};
+
+    use a2a_iroh::{iroh::SecretKey, message_send, parse_task, TaskOutcome};
+    use axum::{body::Body, http::Request};
+    use http_body_util::BodyExt;
+    use tower::ServiceExt;
+
+    use super::*;
+    use crate::testutil::app;
+
+    /// An agent that has enrollment switched on with the token `open-sesame`.
+    fn app_with_enrollment() -> Arc<App> {
+        let mut app = app("http://127.0.0.1:1", "k");
+        app.enrollments = Enrollments::new(Some("open-sesame".into()), Duration::from_secs(3600), HashSet::new());
+        Arc::new(app)
+    }
+
+    /// Send a skill call as `peer` straight into the router, as the Iroh server would.
+    async fn call(app: &Arc<App>, peer: EndpointId, skill: &str, args: Value) -> TaskOutcome {
+        let body = serde_json::to_vec(&message_send(skill, args, "test")).unwrap();
+        let request = Request::builder()
+            .method("POST")
+            .uri("/")
+            .header("content-type", "application/json")
+            .extension(Peer(peer))
+            .body(Body::from(body))
+            .unwrap();
+        let response = router(app.clone()).oneshot(request).await.unwrap();
+        let bytes = response.into_body().collect().await.unwrap().to_bytes();
+        parse_task(&serde_json::from_slice(&bytes).unwrap()).unwrap()
+    }
+
+    #[tokio::test]
+    async fn a_stranger_can_do_nothing_but_enroll() {
+        let app = app_with_enrollment();
+        let stranger = SecretKey::generate().public();
+        for skill in ["llm.complete", "data.catalog", "ip.lookup", "agents.sync", "files.get"] {
+            let outcome = call(&app, stranger, skill, json!({})).await;
+            assert!(outcome.is_not_enrolled(), "{skill} should be refused for a stranger, got {outcome:?}");
+        }
+    }
+
+    #[tokio::test]
+    async fn the_right_token_unlocks_the_skills_and_a_wrong_one_does_not() {
+        let app = app_with_enrollment();
+        let newcomer = SecretKey::generate().public();
+
+        let refused = call(&app, newcomer, ENROLL_SKILL, json!({"token": "guess"})).await;
+        assert_eq!(refused.state, "rejected");
+        assert!(
+            call(&app, newcomer, "data.catalog", json!({})).await.is_not_enrolled(),
+            "a wrong token enrolls nobody"
+        );
+
+        assert_eq!(call(&app, newcomer, ENROLL_SKILL, json!({"token": "open-sesame"})).await.state, "completed");
+        assert_eq!(call(&app, newcomer, "data.catalog", json!({})).await.state, "completed", "now allowed in");
+    }
+
+    #[tokio::test]
+    async fn enrollment_attempts_are_limited_per_peer() {
+        let mut stub = app("http://127.0.0.1:1", "k");
+        stub.enrollments = Enrollments::new(Some("open-sesame".into()), Duration::from_secs(3600), HashSet::new());
+        stub.enroll_quota = crate::policy::Limiter::new(2);
+        let app = Arc::new(stub);
+        let newcomer = SecretKey::generate().public();
+
+        for _ in 0..2 {
+            call(&app, newcomer, ENROLL_SKILL, json!({"token": "guess"})).await;
+        }
+        let blocked = call(&app, newcomer, ENROLL_SKILL, json!({"token": "open-sesame"})).await;
+        assert!(blocked.text.contains("too many enrollment attempts"), "got {blocked:?}");
+    }
+
+    #[tokio::test]
+    async fn with_enrollment_off_nobody_can_enroll() {
+        let app = Arc::new(app("http://127.0.0.1:1", "k"));
+        let outcome = call(&app, SecretKey::generate().public(), ENROLL_SKILL, json!({"token": "anything"})).await;
+        assert_eq!(outcome.state, "rejected");
+        assert!(outcome.text.contains("not enabled"), "got {outcome:?}");
+    }
 }
